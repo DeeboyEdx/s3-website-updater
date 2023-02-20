@@ -3,11 +3,19 @@
 import boto3
 import os
 import hashlib
+import argparse
 
-# Define the name of the S3 bucket and the local project folder
-bucket_name = 'my-bucket'
-local_folder = '/path/to/local/folder/'
+# Define the name of the cache file
 cache_file = 'cache.txt'
+
+# Parse the command line arguments for the local folder and bucket name
+parser = argparse.ArgumentParser(description='Sync a local folder with an S3 bucket.')
+parser.add_argument('local_folder', metavar='local_folder', type=str, help='the path to the local folder')
+parser.add_argument('bucket_name', metavar='bucket_name', type=str, help='the name of the S3 bucket')
+args = parser.parse_args()
+
+local_folder = args.local_folder
+bucket_name = args.bucket_name
 
 # Check if the local folder exists
 if not os.path.exists(local_folder):

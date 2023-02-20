@@ -2,8 +2,10 @@
 
 import boto3
 import os
+import sys
 import hashlib
 import argparse
+from s3_funcs import get_resource, get_content_type
 
 # Define the name of the cache file
 cache_file = 'cache.txt'
@@ -20,10 +22,11 @@ bucket_name = args.bucket_name
 # Check if the local folder exists
 if not os.path.exists(local_folder):
     print(f"The directory {local_folder} does not exist.")
-    exit(1)
+    sys.exit(1)
 
 # Connect to the S3 bucket using the default profile
-s3 = boto3.resource('s3')
+s3_resource = get_resource()
+s3_bucket = s3_resource.Bucket(bucket_name)
 
 # Load the cache of file hashes
 if os.path.exists(cache_file):
@@ -38,11 +41,22 @@ for root, dirs, files in os.walk(local_folder):
         local_path = os.path.join(root, file)
         s3_path = os.path.relpath(local_path, local_folder)
         with open(local_path, 'rb') as f:
+            nfile = os.path.relpath(local_path, local_folder).replace('\\','/')
+            # print(f'reading file: \n\tlocal folder: {local_folder}\n\tlocal path: {local_path}\n\tfile: {file}\n\tnfile: {nfile}')
+            print(f'file: {nfile}', end="  ")
             content = f.read()
             hash = hashlib.md5(content).hexdigest()
-            if s3_path not in cache or cache[s3_path] != hash:
-                s3.Object(bucket_name, s3_path).put(Body=content)
-                cache[s3_path] = hash
+            # Prior method i'm phasing out cuz it doesn't adapt content-type appropriately
+            # if s3_path not in cache or cache[s3_path] != hash:
+            #     # print('updaing hash')
+            #     s3.Object(bucket_name, s3_path).put(Body=content)
+            #     cache[s3_path] = hash
+        if s3_path not in cache or cache[s3_path] != hash:
+            print('<-- updating')
+            s3_bucket.upload_file(local_path, nfile, ExtraArgs={'ContentType': get_content_type(file)})
+            cache[s3_path] = hash
+        else:
+            print('')
 
 # Write the updated cache of file hashes to disk
 with open(cache_file, 'w') as f:
@@ -50,12 +64,12 @@ with open(cache_file, 'w') as f:
         f.write(f"{key}\t{value}\n")
 
 # Set the website configuration for the S3 bucket
-bucket_website = s3.BucketWebsite(bucket_name)
-bucket_website.put(
-    WebsiteConfiguration={
-        'ErrorDocument': {'Key': 'error.html'},
-        'IndexDocument': {'Suffix': 'index.html'}
-    }
-)
+# bucket_website = s3.BucketWebsite(bucket_name)
+# bucket_website.put(
+#     WebsiteConfiguration={
+#         'ErrorDocument': {'Key': 'error.html'},
+#         'IndexDocument': {'Suffix': 'index.html'}
+#     }
+# )
 
 print(f'Local folder {local_folder} synced with S3 bucket {bucket_name}.')

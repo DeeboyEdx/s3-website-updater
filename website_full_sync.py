@@ -38,6 +38,9 @@ else:
 # Sync the local project folder with the S3 bucket
 for root, dirs, files in os.walk(local_folder):
     for file in files:
+        if file == cache_file:
+            # skipping cache file
+            continue
         local_path = os.path.join(root, file)
         s3_path = os.path.relpath(local_path, local_folder)
         with open(local_path, 'rb') as f:
@@ -52,7 +55,7 @@ for root, dirs, files in os.walk(local_folder):
             #     s3.Object(bucket_name, s3_path).put(Body=content)
             #     cache[s3_path] = hash
         if s3_path not in cache or cache[s3_path] != hash:
-            print('<-- updating')
+            print('<-- uploading changes')
             s3_bucket.upload_file(local_path, nfile, ExtraArgs={'ContentType': get_content_type(file)})
             cache[s3_path] = hash
         else:

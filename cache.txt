@@ -1,4 +1,0 @@
-test.html	c42073d186ecdef273043f507988b0af
-test.txt	2c43b63d0860f8c5f89bc7c765f563d0
-a_folder\a_test.html	65bf54c9ff5e8a9230219ddd0343ef07
-test\index.html	acf11e83593a4bffc1897e708b1ac60a

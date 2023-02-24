@@ -10,6 +10,9 @@ from s3_funcs import get_resource, get_content_type
 # Define the name of the cache file
 cache_file = 'cache.txt'
 
+# setting flag that determines whether or not to upload files that have been modified
+updated_file_count = 0
+
 # Parse the command line arguments for the local folder and bucket name
 parser = argparse.ArgumentParser(description='Sync a local folder with an S3 bucket.')
 parser.add_argument('local_folder', metavar='local_folder', type=str, help='the path to the local folder')
@@ -58,6 +61,7 @@ for root, dirs, files in os.walk(local_folder):
             print('<-- uploading changes')
             s3_bucket.upload_file(local_path, nfile, ExtraArgs={'ContentType': get_content_type(file)})
             cache[s3_path] = hash
+            updated_file_count += 1
         else:
             print('')
 
@@ -74,5 +78,7 @@ with open(cache_file, 'w') as f:
 #         'IndexDocument': {'Suffix': 'index.html'}
 #     }
 # )
-
-print(f'Local folder {local_folder} synced with S3 bucket {bucket_name}.')
+if updated_file_count:
+    print(f"Local project folder synced with S3 bucket {bucket_name}. {updated_file_count} file{'s' if updated_file_count > 1 else ''} updated.")
+else:
+    print(f"No changes detected to sync with S3 bucket {bucket_name}.")

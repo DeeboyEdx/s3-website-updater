@@ -49,7 +49,7 @@ for root, dirs, files in os.walk(local_folder):
         with open(local_path, 'rb') as f:
             nfile = os.path.relpath(local_path, local_folder).replace('\\','/')
             # print(f'reading file: \n\tlocal folder: {local_folder}\n\tlocal path: {local_path}\n\tfile: {file}\n\tnfile: {nfile}')
-            print(f'file: {nfile}', end="  ")
+            # print(f'file: {nfile}', end="  ") # opting to a less verbose output
             content = f.read()
             hash = hashlib.md5(content).hexdigest()
             # Prior method i'm phasing out cuz it doesn't adapt content-type appropriately
@@ -58,12 +58,13 @@ for root, dirs, files in os.walk(local_folder):
             #     s3.Object(bucket_name, s3_path).put(Body=content)
             #     cache[s3_path] = hash
         if s3_path not in cache or cache[s3_path] != hash:
-            print('<-- uploading changes')
+            # print('<-- uploading changes')
+            print(f'updating: {nfile}')
             s3_bucket.upload_file(local_path, nfile, ExtraArgs={'ContentType': get_content_type(file)})
             cache[s3_path] = hash
             updated_file_count += 1
-        else:
-            print('')
+        # else:
+            # print('')
 
 # Write the updated cache of file hashes to disk
 with open(cache_file, 'w') as f:

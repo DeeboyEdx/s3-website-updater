@@ -108,9 +108,9 @@ $filenames = $filenames -join ', '
 
 Push-Location $ProjectRoot
 
-Write-Host "command: " -NoNewline
+# Write-Host "command: " -NoNewline
 if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
-    Write-Host "python $py_s3_website_sync_name `"$ProjectRoot`" $BucketName" -ForegroundColor Cyan
+    # Write-Host "python $py_s3_website_sync_name `"$ProjectRoot`" $BucketName" -ForegroundColor Cyan
     if (-not $dbug) {
         $output = $err = $null
         try {
@@ -126,7 +126,7 @@ if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
     }
 }
 else {
-    Write-Host "python $py_s3_funcs_name `"$filenames`" $BucketName" -ForegroundColor Cyan
+    # Write-Host "python $py_s3_funcs_name `"$filenames`" $BucketName" -ForegroundColor Cyan
     if (-not $dbug) {
         $output = $err = $null
         try {

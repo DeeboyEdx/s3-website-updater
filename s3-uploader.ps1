@@ -65,11 +65,14 @@ param (
     [string[]] 
     $Path,
 
+    [string]
+    $DistributionId,
+
     [switch] 
     $Force
 )
 if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
-    Write-Host "Syncing all updated files"
+    Write-Host "Syncing all updated files..."
 }
 
 $dbug = $DebugPreference -eq 'Continue' -or $false
@@ -81,9 +84,10 @@ function Write-Debug {
 
 $py_s3_funcs_name = "s3_funcs.py"
 $py_s3_funcs_path = Join-Path $PSScriptRoot $py_s3_funcs_name
-$py_s3_website_sync_name = 'website_full_sync.py'
+$py_s3_website_sync_name = 's3_website_full_sync.py'
 $py_s3_website_sync_path = Join-Path $PSScriptRoot $py_s3_website_sync_name
 
+# Displaying project's fully qualified root path for user's verification.
 $ProjectRoot = (Get-Item $ProjectRoot | Select-Object -ExpandProperty FullName) + '\'
 $ProjectRoot = $ProjectRoot.Replace('\\','\')
 Write-Host "Project Root path: $ProjectRoot" -ForegroundColor Yellow
@@ -109,12 +113,18 @@ $filenames = $filenames -join ', '
 Push-Location $ProjectRoot
 
 # Write-Host "command: " -NoNewline
+$output = $err = $null
+$error.Clear()
 if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
-    # Write-Host "python $py_s3_website_sync_name `"$ProjectRoot`" $BucketName" -ForegroundColor Cyan
+    # Write-Host "python $py_s3_website_sync_name `"$ProjectRoot`" $BucketName $(if ($DistributionId) {"--distro_id $DistributionId"})" -ForegroundColor Cyan
     if (-not $dbug) {
-        $output = $err = $null
         try {
-            $output = python $py_s3_website_sync_path $ProjectRoot $BucketName 2>&1
+            $output = if (-not $DistributionId) {
+                python $py_s3_website_sync_path $ProjectRoot $BucketName 2>&1
+            }
+            else {
+                python $py_s3_website_sync_path $ProjectRoot $BucketName --distro_id $DistributionId 2>&1
+            }
         }
         catch {
             $err = $_.Exception.Message
@@ -128,7 +138,6 @@ if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
 else {
     # Write-Host "python $py_s3_funcs_name `"$filenames`" $BucketName" -ForegroundColor Cyan
     if (-not $dbug) {
-        $output = $err = $null
         try {
             $output = python $py_s3_funcs_path $filenames $BucketName 2>&1
         }

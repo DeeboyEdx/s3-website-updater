@@ -1,1 +1,1 @@
-powershell -noprofile -command "deactivate; .\.win-venv\Scripts\activate; .\s3-uploader.ps1 -ProjectRoot C:\Users\aquar\OneDrive\Documents\QuikScripts\python\push2pc\s3-html\ -BucketName pcpusher -SyncJustChanges"
+powershell -noprofile -command "deactivate; .\.win-venv\Scripts\activate; .\s3-uploader.ps1 -ProjectRoot C:\Users\aquar\OneDrive\Documents\QuikScripts\python\push2pc\s3-html\ -BucketName pcpusher.net -DistributionId EP27B6D78GFXA -SyncJustChanges"

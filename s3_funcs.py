@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import List, Optional
+import random
+import string
 
 load_dotenv()
 
@@ -68,6 +70,26 @@ def r_upload_to_s3(bucket_name: str, filenames: List[str], with_content_type: bo
             # this uploads Content-Type of binary/octet-stream
             s3_bucket.upload_file(filename, filename)
 
+def generate_caller_reference(length=26):
+    characters = string.ascii_uppercase + string.digits
+    caller_reference = ''.join(random.choice(characters) for _ in range(length))
+    return 'DR' + caller_reference
+
+def clear_from_cloudfront_cache(distro_id, paths: List[str]):
+    cloudfront_client = get_cloudfront_client()
+    response = cloudfront_client.create_invalidation(
+        DistributionId=distro_id,
+        InvalidationBatch={
+            'Paths': {
+                'Quantity': len(paths),
+                'Items': paths
+            },
+            'CallerReference': generate_caller_reference()
+        }
+    )
+    # Print the invalidation information
+    print('Invalidation created with ID:', response['Invalidation']['Id'])
+
 
 # client / resource getter functions
 def get_resource():
@@ -80,6 +102,13 @@ def get_resource():
 def get_client():
     return boto3.client(
         's3',
+        aws_access_key_id=get_access_key(),
+        aws_secret_access_key=get_secret_key()
+    )
+
+def get_cloudfront_client():
+    return boto3.client(
+        'cloudfront',
         aws_access_key_id=get_access_key(),
         aws_secret_access_key=get_secret_key()
     )

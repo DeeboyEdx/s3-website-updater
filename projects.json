@@ -1,0 +1,15 @@
+[
+  {
+    "ProjectRoot": "C:\\Users\\aquar\\OneDrive\\Documents\\QuikScripts\\python\\push2pc\\s3-html\\",
+    "BucketName": "pcpusher.net",
+    "DistributionId": "EP27B6D78GFXA"
+  },
+  {
+    "BucketName": "lazyspaniard.com",
+    "DistributionId": "ET6563VBPVOSK",
+    "ProjectRoot": null
+  },
+  {
+    "NoteToSelf": "Thought I could use this to make it easier to run the ps1 script but my current approach (splatting) requires it to be imported, converted from JSON, converted to hashtable (my personal function), THEN splatted, which is too many steps.  I'll just rely on the batch file approach for now."
+  }
+]

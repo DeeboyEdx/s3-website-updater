@@ -17,24 +17,30 @@ parser = argparse.ArgumentParser(description='Sync a local folder with an Amazon
 parser.add_argument('local_project_root_path', metavar='local_project_root_path', type=str, help='the path to the local folder')
 parser.add_argument('bucket_name', metavar='bucket_name', type=str, help='the name of the S3 bucket')
 parser.add_argument('-d', '--distro_id', type=str, metavar='cloudfront_distribution_id')
+# create a boolean, optional flag that defaults to False
+parser.add_argument('-f', '--force', action='store_true', help='force the sync of all files, even if the local folder contains more than 10 new files')
 args = parser.parse_args()
 
 local_project_root_path = args.local_project_root_path
 bucket_name = args.bucket_name
 distro_id = args.distro_id
+force = args.force
 
 # Check if the local folder exists
 if not os.path.exists(local_project_root_path):
     print(f"The directory {local_project_root_path} does not exist.")
     sys.exit(1)
+else:
+    print(f"Syncing '{bucket_name}' project folder: {local_project_root_path}")
+
+print(' '*80)
 
 # Checking for a distribution ID, which is needed to clear the cloudfront cache
 if distro_id:
     if len(distro_id) != 13:
         # exiting if an invalid ID is received
-        print(f'Invalid distribution id recieved: {distro_id}')
+        print(f'Invalid distribution id received: {distro_id}')
         exit(2)
-    print(f'Distribution id recieved: {distro_id}')
 
 # Connect to the S3 bucket using the default profile # later Diego here. wtf does "default profile" mean??
 s3_resource = get_resource()
@@ -46,6 +52,25 @@ if os.path.exists(cache_file):
         cache = dict(line.strip().split('\t') for line in f)
 else:
     cache = {}
+
+def count_files_recursively(directory_path):
+    try:
+        file_count = 0
+        for root, dirs, files in os.walk(directory_path):
+            file_count += len(files)
+        return file_count
+    except OSError as e:
+        print("Error:", e)
+        return None
+
+file_count = count_files_recursively(local_project_root_path)
+if file_count > len(cache) + 10:
+    if force:
+        print('force flag detected. Syncing all files.')
+    else:
+        # can't ask use to confirm here cuz this script is run by a powershell script which captures the output and doesn't print the prompt to the console
+        print(f'Warning: The local project folder contains more than 10 new files ({file_count} vs {len(cache)}). Re-run the script with --force to sync the new files.')
+        exit(1)
 
 # Sync the local project folder with the S3 bucket
 for root, dirs, files in os.walk(local_project_root_path):
@@ -94,12 +119,15 @@ with open(cache_file, 'w') as f:
 #     }
 # )
 if not updated_files:
-    print(f"No changes detected to sync with S3 bucket '{bucket_name}'.")
+    print(f"No changes detected in local project path to sync with S3 bucket '{bucket_name}'.")
     exit(0)
     
 print(f"Local project folder synced with S3 bucket '{bucket_name}'. {len(updated_files)} file{'s' if len(updated_files) > 1 else ''} updated.")
 
 # Clearing or "invalidating" the CDN cache of outdated files
 if distro_id:
-    print('Clearing (or "invalidating") updated files from Cloudfront cache.')
+    print('\nClearing (or "invalidating") updated paths from Cloudfront cache.')
+    # adding paths to index.html to the list of paths to clear from CDN cache
+    paths_to_index_html = [path[:-10] for path in updated_files if path.endswith('index.html')]
+    updated_files.extend(paths_to_index_html)
     clear_from_cloudfront_cache(distro_id, updated_files)

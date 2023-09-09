@@ -116,10 +116,10 @@ def get_cloudfront_client():
 
 # key and secret key getter functions
 def get_access_key():
-    return os.environ.get('ACCESS_KEY')
+    return os.environ.get('S3_ACCESS_KEY')
 
 def get_secret_key():
-    return os.environ.get('SECRET_KEY')
+    return os.environ.get('S3_SECRET_KEY')
 
 
 # Other helper functions

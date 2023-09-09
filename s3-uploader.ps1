@@ -71,9 +71,13 @@ param (
     [switch] 
     $Force
 )
-if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
-    Write-Host "Syncing all updated files..."
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    $continue = Read-Host "Warning: This script requires PowerShell 7 or later. Do you want to continue? (Y/N)"
+    if ($continue -notlike 'y*') {
+        exit
+    }
 }
+Write-Host
 
 $dbug = $DebugPreference -eq 'Continue' -or $false
 function Write-Debug {
@@ -93,8 +97,7 @@ $ProjectRoot = $ProjectRoot.Replace('\\','\')
 Write-Host "Project Root path: $ProjectRoot" -ForegroundColor Yellow
 
 if ((-not $Force) -and (Read-Host 'Confirmed?').Trim() -notlike 'y*') {
-    Write-Host "Exiting"
-    return
+    exit
 }
 
 $filenames = @()
@@ -110,23 +113,34 @@ foreach ($p in $Path) {
 Write-Debug "`nfilenames: $filenames"
 $filenames = $filenames -join ', '
 
+Write-Verbose "Pushing to project directory"
 Push-Location $ProjectRoot
 
 # Write-Host "command: " -NoNewline
 $output = $err = $null
 $error.Clear()
 if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
-    # Write-Host "python $py_s3_website_sync_name `"$ProjectRoot`" $BucketName $(if ($DistributionId) {"--distro_id $DistributionId"})" -ForegroundColor Cyan
+    Write-Verbose 'Syncing all updated files...'
     if (-not $dbug) {
-        try {
-            $output = if (-not $DistributionId) {
-                python $py_s3_website_sync_path $ProjectRoot $BucketName 2>&1
+        $output = try {
+            $py_script_args = @($py_s3_website_sync_path, $ProjectRoot, $BucketName)
+            if (-not $DistributionId) {
+                Write-Verbose "No Distribution ID specified"
+                # python $py_s3_website_sync_path $ProjectRoot $BucketName 2>&1
             }
             else {
-                python $py_s3_website_sync_path $ProjectRoot $BucketName --distro_id $DistributionId 2>&1
+                Write-Verbose "Distribution ID: $DistributionId"
+                $py_script_args += '--distro_id', $DistributionId
+                # python $py_s3_website_sync_path $ProjectRoot $BucketName --distro_id $DistributionId 2>&1
             }
+            if ($Force) {
+                $py_script_args += '--force'
+            }
+            # Write-Host "python $py_script_args" -ForegroundColor Cyan
+            python $py_script_args 2>&1
         }
         catch {
+            Write-Verbose "An error occurred while running the Python script: $_"
             $err = $_.Exception.Message
         }
         if ($null -ne $err -or $output -match 'error') {
@@ -136,7 +150,8 @@ if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
     }
 }
 else {
-    # Write-Host "python $py_s3_funcs_name `"$filenames`" $BucketName" -ForegroundColor Cyan
+    Write-Verbose 'Uploading individual files...'
+    # Write-Host "python `"$py_s3_funcs_path`" `"$filenames`" $BucketName" -ForegroundColor Cyan
     if (-not $dbug) {
         try {
             $output = python $py_s3_funcs_path $filenames $BucketName 2>&1
@@ -151,4 +166,5 @@ else {
     }
 }
 
+Write-Verbose 'Popping directory, and Done'
 Pop-Location

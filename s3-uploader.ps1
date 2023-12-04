@@ -144,7 +144,7 @@ if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
             $err = $_.Exception.Message
         }
         if ($null -ne $err -or $output -match 'error') {
-            Write-Host "An error occurred while running the Python script: $error"
+            Write-Host "An error occurred during running the Python script: $error"
         }
         Write-Output $output
     }

@@ -1,3 +1,6 @@
+# Found the basis of this online
+# I had thought of a use for this but I can't remember what it was so I'm relegating this to the backburner for now
+
 from pathlib import Path
 
 # prefix components:

@@ -1,3 +1,29 @@
+<#
+.SYNOPSIS
+    Updates an AWS S3 website with the specified parameters using the s3-uploader.ps1 script.
+
+.DESCRIPTION
+    This script updates a website identified by the specified WebsiteName with the
+    parameters obtained from the Get-Params.ps1 script. It provides the option to force
+    the update using the -Force switch.
+
+.PARAMETER WebsiteName
+    Specifies the name of the website to be updated. Valid values are 'pccommander.net'
+    and 'lazyspaniard.com'. Default value is 'PcCommander.net'.
+
+.PARAMETER Force
+    Switch parameter that forces the update, bypassing any confirmation prompts.
+
+.EXAMPLE
+    PS C:\> .\Update-S3Website.ps1 -WebsiteName 'lazyspaniard.com' -Force
+    Updates the 'lazyspaniard.com' website with the specified parameters without prompting for confirmation.
+
+.NOTES
+    File: Update-S3Website.ps1
+    Author: Diego Reategui
+    Date: 2023-12-26
+
+#>
 [CmdletBinding()]
 param (
     [ValidateSet('pccommander.net', 'lazyspaniard.com')]

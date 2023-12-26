@@ -1,3 +1,5 @@
+# Learning about pester tests with ChatGPT.  This one didn't quite work but I get the concept now.
+
 Describe "Test script parameters" {
     It "Validates the Path parameter with valid paths" {
         $Path = @(
@@ -22,7 +24,7 @@ Describe "Test script parameters" {
             $Path
         }
 
-        $result = Invoke-Pester -ScriptBlock $scriptBlock -Parameters @{Path = $Path}
+        $result = & $scriptBlock -Path $Path
 
         $result | Should Be $Path
     }
@@ -51,7 +53,7 @@ Describe "Test script parameters" {
             $Path
         }
 
-        $result = Invoke-Pester -ScriptBlock $scriptBlock -Parameters @{Path = $Path} -ErrorAction SilentlyContinue
+        $result = & $scriptBlock -Path $Path -ErrorAction SilentlyContinue
 
         $result | Should BeNullOrEmpty
     }
@@ -61,14 +63,13 @@ Describe "Test script parameters" {
 
         $scriptBlock = {
             param (
-                [string]$ProjectRoot = (Get-Location),
                 [ValidateScript({
                     if (!(Test-Path $_) -or (Get-Item $_).PSIsContainer) {
                         throw "Path '$_' is not a valid directory path."
                     }
                     $true
                 })]
-                [string]$ProjectRoot
+                [string]$ProjectRoot = (Get-Location)
             )
 
             $ProjectRoot
@@ -84,14 +85,13 @@ Describe "Test script parameters" {
 
         $scriptBlock = {
             param (
-                [string]$ProjectRoot = (Get-Location),
                 [ValidateScript({
                     if (!(Test-Path $_) -or (Get-Item $_).PSIsContainer) {
                         throw "Path '$_' is not a valid directory path."
                     }
                     $true
                 })]
-                [string]$ProjectRoot
+                [string]$ProjectRoot = (Get-Location)
             )
 
             $ProjectRoot

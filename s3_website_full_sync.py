@@ -31,7 +31,7 @@ if not os.path.exists(local_project_root_path):
     print(f"The directory {local_project_root_path} does not exist.")
     sys.exit(1)
 else:
-    print(f"Syncing '{bucket_name}' project folder: {local_project_root_path}")
+    print(f"Updating '{bucket_name}' from project folder: {local_project_root_path}")
 
 print(' '*80)
 

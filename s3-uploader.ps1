@@ -71,6 +71,31 @@ param (
     [switch] 
     $Force
 )
+function Test-InVirtualEnvironment {
+    return ((Test-Path env:VIRTUAL_ENV) -and (Split-Path $env:VIRTUAL_ENV) -eq $PSScriptRoot)
+}
+function Activate-VirtualEnvironment ([switch]$ReturnPriorVenvState) {
+    if (-not ($wasInVEnv = Test-InVirtualEnvironment)) {
+        Write-Host "Not in virtual env. Activating..." -F DarkGray
+        Push-Location $PSScriptRoot
+        if (($prior = $VerbosePreference) -ne 'SilentlyContinue') {
+            $VerbosePreference = 'SilentlyContinue'
+        }
+        .\.win-venv\Scripts\activate
+        $VerbosePreference = $prior
+        Pop-Location
+        if (-not (Test-InVirtualEnvironment)) {
+            Write-Host "Failed to activate virtual environment." -F Red
+            exit 1
+        }
+    }
+    else {
+        Write-Verbose "Confirmed in virtual environment"
+    }
+    if ($ReturnPriorVenvState) {
+        return $wasInVEnv
+    }
+}
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     $continue = Read-Host "Warning: This script requires PowerShell 7 or later. Do you want to continue? (Y/N)"
     if ($continue -notlike 'y*') {
@@ -78,6 +103,8 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     }
 }
 Write-Host
+
+$wasInVEnv = Activate-VirtualEnvironment -ReturnPriorVenvState
 
 $dbug = $DebugPreference -eq 'Continue' -or $false
 function Write-Debug {
@@ -164,6 +191,11 @@ else {
         }
         Write-Output $output
     }
+}
+
+if (-not $wasInVEnv) {
+    Write-Host "Deactivating virtual environment..." -F DarkGray
+    deactivate
 }
 
 Write-Verbose 'Popping directory, and Done'

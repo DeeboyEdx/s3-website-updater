@@ -5,6 +5,7 @@ import sys
 import hashlib
 import argparse
 from s3_funcs import get_resource, get_content_type, clear_from_cloudfront_cache
+from ignore_handler import S3IgnoreHandler
 
 # Define the name of the cache file
 cache_file = 'cache.txt'
@@ -26,6 +27,9 @@ bucket_name = args.bucket_name
 distro_id = args.distro_id
 force = args.force
 
+# Initialize the ignore handler
+ignore_handler = S3IgnoreHandler(local_project_root_path)
+
 # Check if the local folder exists
 if not os.path.exists(local_project_root_path):
     print(f"The directory {local_project_root_path} does not exist.")
@@ -42,50 +46,68 @@ if distro_id:
         print(f'Invalid distribution id received: {distro_id}')
         exit(2)
 
-# Connect to the S3 bucket using the default profile # later Diego here. wtf does "default profile" mean??
+# Connect to the S3 bucket using the default profile
 s3_resource = get_resource()
 s3_bucket = s3_resource.Bucket(bucket_name)
 
-# Load the cache of file hashes
+# Load and clean the cache of file hashes
+cache = {}
 if os.path.exists(cache_file):
     with open(cache_file, 'r') as f:
-        cache = dict(line.strip().split('\t') for line in f)
-else:
-    cache = {}
+        for line in f:
+            rel_path, hash_value = line.strip().split('\t')
+            # Only keep cache entries for files that still exist and aren't ignored
+            full_path = os.path.join(local_project_root_path, rel_path)
+            if os.path.exists(full_path) and not ignore_handler.should_ignore(full_path):
+                cache[rel_path] = hash_value
 
 def count_files_recursively(directory_path):
     try:
         file_count = 0
+        file_list = []  # Keep track of non-ignored files
         for root, dirs, files in os.walk(directory_path):
-            file_count += len(files)
-        return file_count
+            # Remove ignored directories to prevent walking into them
+            dirs[:] = [d for d in dirs if not ignore_handler.should_ignore(os.path.join(root, d))]
+            # Count and track only non-ignored files
+            for f in files:
+                if f == cache_file:  # Skip cache file
+                    continue
+                full_path = os.path.join(root, f)
+                if not ignore_handler.should_ignore(full_path):
+                    file_count += 1
+                    rel_path = os.path.relpath(full_path, directory_path)
+                    file_list.append(rel_path)
+        return file_count, file_list
     except OSError as e:
         print("Error:", e)
-        return None
+        return None, []
 
-file_count = count_files_recursively(local_project_root_path)
-if file_count > len(cache) + 10:
+file_count, tracked_files = count_files_recursively(local_project_root_path)
+new_files = set(tracked_files) - set(cache.keys())
+if len(new_files) > 10:  # Now we're checking actual new files, not ignored ones
     if force:
         print('force flag detected. Syncing all files.')
     else:
-        # can't ask use to confirm here cuz this script is run by a powershell script which captures the output and doesn't print the prompt to the console
-        print(f'Warning: The local project folder contains more than 10 new files ({file_count} vs {len(cache)}). Re-run the script with --force to sync the new files.')
+        # More informative message about new files
+        print(f"Warning: Found {len(new_files)} new files to sync (excluding ignored files).")
+        print("These files will be synced:")
+        for f in sorted(list(new_files)[:5]):  # Show first 5 files as examples
+            print(f"  - {f}")
+        if len(new_files) > 5:
+            print(f"  ... and {len(new_files) - 5} more files")
+        print(f"\nCurrent cache has {len(cache)} files. Re-run with --force to sync the new files.")
         exit(1)
 
 # Sync the local project folder with the S3 bucket
 for root, dirs, files in os.walk(local_project_root_path):
-    '''
-    Walking through each folder in the local_project_root_path, inclusive
-    ex:
-    root  = 'C:\\Users\\aquar\\OneDrive\\Documents\\QuikScripts\\python\\push2pc\\s3-html\\'
-    dirs  = ['howto', 'media', 'privacy']
-    files = ['cache.txt', 'deleteme.html', 'endpoints', 'index.html', 'main.js', 'styles.css']
-    '''
+    # Skip ignored directories
+    dirs[:] = [d for d in dirs if not ignore_handler.should_ignore(os.path.join(root, d))]
+    
     for file in files:
-        # don't need to check or upload cache file
-        if file == cache_file:
+        # Skip ignored files and cache file
+        full_local_path = os.path.join(root, file)
+        if file == cache_file or ignore_handler.should_ignore(full_local_path):
             continue
-        full_local_path = os.path.join(root, file) # Ex: C:\Users\aquar\OneDrive\Documents\QuikScripts\python\push2pc\s3-html\privacy\index.html
         relative_path = os.path.relpath(full_local_path, local_project_root_path) # used just for cache stuff. Ex: privacy\index.html
         unix_rel_path = relative_path.replace('\\','/') # s3 object path. Note the unix-style forward-slash.   Ex: privacy/index.html
         with open(full_local_path, 'rb') as f:

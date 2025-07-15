@@ -9,6 +9,73 @@ import string
 
 load_dotenv()
 
+# Dictionary mapping file extensions to MIME types
+CONTENT_TYPES = {
+    # Web content
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'application/javascript',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.md': 'text/markdown',
+    '.pdf': 'application/pdf',
+    
+    # Images
+    '.png': 'image/png',
+    '.jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.ico': 'image/x-icon',
+    '.bmp': 'image/bmp',
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp',
+    
+    # Audio/Video
+    '.mp3': 'audio/mpeg',
+    '.mp4': 'video/mp4',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.webm': 'video/webm',
+    
+    # Archives
+    '.zip': 'application/zip',
+    '.tar': 'application/x-tar',
+    '.gz': 'application/gzip',
+    '.7z': 'application/x-7z-compressed',
+    '.rar': 'application/vnd.rar',
+    
+    # Documents
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.odt': 'application/vnd.oasis.opendocument.text',
+    '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+    '.odp': 'application/vnd.oasis.opendocument.presentation',
+    
+    # Text and Source code files
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.rtf': 'application/rtf',
+    '.py': 'text/x-python',
+    '.java': 'text/x-java',
+    '.c': 'text/x-c',
+    '.cpp': 'text/x-c++',
+    '.h': 'text/x-c',
+    '.sh': 'text/x-shellscript',
+    '.php': 'text/x-php',
+    '.rb': 'text/x-ruby',
+    
+    # Fonts
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.eot': 'application/vnd.ms-fontobject'
+}
+
 def main():
     bucket_name = 'diego-bucket-test'
     if len(argv) not in (2,3):
@@ -63,10 +130,13 @@ def r_upload_to_s3(bucket_name: str, filenames: List[str], with_content_type: bo
     s3_resource = get_resource()
     s3_bucket = s3_resource.Bucket(bucket_name)
     for filename in filenames:
-        print("uploading:", filename)
+        print(f"\nUploading: {filename}")
         if with_content_type:
-            s3_bucket.upload_file(filename, filename, ExtraArgs={'ContentType': get_content_type(filename)})
+            content_type = get_content_type(filename)
+            print(f"Using content type: {content_type}")
+            s3_bucket.upload_file(filename, filename, ExtraArgs={'ContentType': content_type})
         else:
+            print("No content type specified, using default binary/octet-stream")
             # this uploads Content-Type of binary/octet-stream
             s3_bucket.upload_file(filename, filename)
 
@@ -124,42 +194,19 @@ def get_secret_key():
 
 # Other helper functions
 def get_content_type(filename):
-    # a dictionary of file extensions to content types
-    content_types = {
-        '.html': 'text/html',
-        '.css': 'text/css',
-        '.js': 'application/javascript',
-        '.json': 'application/json',
-        '.xml': 'application/xml',
-        '.md': 'binary/octet-stream',
-        '.pdf': 'application/pdf',
-        '.png': 'image/png',
-        '.jpeg': 'image/jpeg',
-        '.jpg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.mp3': 'audio/mpeg',
-        '.mp4': 'video/mp4',
-        '.zip': 'application/zip',
-        '.tar': 'application/x-tar',
-        '.gz': 'application/gzip',
-        '.ico': 'image/x-icon',
-        '.bmp': 'image/bmp',
-        '.svg': 'image/svg+xml',
-        '.txt': 'text/plain',
-        '.csv': 'text/csv',
-        '.rtf': 'application/rtf',
-        '.doc': 'application/msword',
-        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        '.ppt': 'application/vnd.ms-powerpoint',
-        '.xls': 'application/vnd.ms-excel',
-        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        '.wav': 'audio/wav'
-    }
-    extension = Path(filename).suffix
-    if not content_types.get(extension):
-        # raise TypeError(f'Unknown file extension: {extension}')
-        print(f'Unknown file extension "{extension}". Using "binary/octet-stream"')
-    return content_types.get(extension, 'binary/octet-stream')
+    """
+    Get the MIME content type for a file based on its extension.
+    
+    Args:
+        filename (str): The name of the file
+        
+    Returns:
+        str: The MIME content type
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    content_type = CONTENT_TYPES.get(ext, 'application/octet-stream')
+    # print(f"Content type for {filename}: {content_type}")  # Verbose output
+    return content_type
 
 if __name__ == '__main__':
     main()

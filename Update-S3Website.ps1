@@ -24,7 +24,7 @@
     Date: 2023-12-26
 
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param (
     [ValidateSet('pccommander.net', 'lazyspaniard.com')]
     [string] $WebsiteName = 'PcCommander.net',
@@ -34,5 +34,9 @@ $n = 10
 Write-Host "$(' '*$n) Updating website $WebsiteName $(' '*$n)" -backgroundcolor Green -foregroundcolor Black
 $params = & (Join-Path $PSScriptRoot .\Get-Params.ps1) -BucketName $WebsiteName
 $params['Force'] = $Force
+if ($WhatIfPreference) {
+    $params['WhatIf'] = $true
+    Write-Host "What if: Would update S3 bucket for website '$WebsiteName'" -ForegroundColor Cyan
+}
 Write-Verbose "Params: $($params.GetEnumerator())"
 & (Join-Path $PSScriptRoot .\s3-uploader.ps1) @params

@@ -20,6 +20,7 @@ parser.add_argument('bucket_name', metavar='bucket_name', type=str, help='the na
 parser.add_argument('-d', '--distro_id', type=str, metavar='cloudfront_distribution_id')
 # create a boolean, optional flag that defaults to False
 parser.add_argument('-f', '--force', action='store_true', help='force the sync of all files, even if the local folder contains more than 10 new files')
+parser.add_argument('--dry-run', action='store_true', help='show which files would be updated without making any changes')
 args = parser.parse_args()
 
 local_project_root_path = args.local_project_root_path
@@ -120,17 +121,22 @@ for root, dirs, files in os.walk(local_project_root_path):
             #     s3.Object(bucket_name, relative_path).put(Body=content)
             #     cache[relative_path] = hash
         if relative_path not in cache or cache[relative_path] != hash:
-            print(f'updating: {unix_rel_path}')
-            s3_bucket.upload_file(full_local_path, unix_rel_path, ExtraArgs={'ContentType': get_content_type(file)})
-            cache[relative_path] = hash
+            content_type = get_content_type(file)
+            if args.dry_run:
+                print(f'Would update: {unix_rel_path} (Content-Type: {content_type})')
+            else:
+                print(f'Updating: {unix_rel_path}')
+                s3_bucket.upload_file(full_local_path, unix_rel_path, ExtraArgs={'ContentType': content_type})
+                cache[relative_path] = hash
             updated_files.append('/' + unix_rel_path)
         # else:
             # print('')
 
-# Write the updated cache of file hashes to disk
-with open(cache_file, 'w') as f:
-    for key, value in cache.items():
-        f.write(f"{key}\t{value}\n")
+# Write the updated cache of file hashes to disk only if not in dry-run mode
+if not args.dry_run:
+    with open(cache_file, 'w') as f:
+        for key, value in cache.items():
+            f.write(f"{key}\t{value}\n")
 
 # Set the website configuration for the S3 bucket
 # bucket_website = s3.BucketWebsite(bucket_name)
@@ -147,9 +153,19 @@ if not updated_files:
 print(f"Local project folder synced with S3 bucket '{bucket_name}'. {len(updated_files)} file{'s' if len(updated_files) > 1 else ''} updated.")
 
 # Clearing or "invalidating" the CDN cache of outdated files
-if distro_id:
-    print('\nClearing (or "invalidating") updated paths from Cloudfront cache.')
-    # adding paths to index.html to the list of paths to clear from CDN cache
-    paths_to_index_html = [path[:-10] for path in updated_files if path.endswith('index.html')]
-    updated_files.extend(paths_to_index_html)
-    clear_from_cloudfront_cache(distro_id, updated_files)
+if distro_id and updated_files:
+    if args.dry_run:
+        print('\nWould clear the following paths from Cloudfront cache:')
+        for path in updated_files:
+            print(f'  {path}')
+        paths_to_index_html = [path[:-10] for path in updated_files if path.endswith('index.html')]
+        if paths_to_index_html:
+            print('\nWould also clear parent paths for index.html files:')
+            for path in paths_to_index_html:
+                print(f'  {path}')
+    else:
+        print('\nClearing (or "invalidating") updated paths from Cloudfront cache.')
+        # adding paths to index.html to the list of paths to clear from CDN cache
+        paths_to_index_html = [path[:-10] for path in updated_files if path.endswith('index.html')]
+        updated_files.extend(paths_to_index_html)
+        clear_from_cloudfront_cache(distro_id, updated_files)

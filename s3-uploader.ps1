@@ -33,7 +33,7 @@ Uploads the 'index.html' and 'styles.css' files in the 'my-html-project' directo
 Uploads the entire HTML project located at 'C:\my-html-project' to the 'my-bucket' S3 bucket without prompting for confirmation.
 
 #>
-[CmdletBinding(DefaultParameterSetName='SyncChanges')]
+[CmdletBinding(DefaultParameterSetName='SyncChanges', SupportsShouldProcess)]
 param (    
     [ValidateNotNullOrEmpty()]
     [Parameter(Mandatory=$true, HelpMessage='Name of the S3 bucket to upload to')]
@@ -153,15 +153,16 @@ if ($PSCmdlet.ParameterSetName -eq 'SyncChanges') {
             $py_script_args = @($py_s3_website_sync_path, $ProjectRoot, $BucketName)
             if (-not $DistributionId) {
                 Write-Verbose "No Distribution ID specified"
-                # python $py_s3_website_sync_path $ProjectRoot $BucketName 2>&1
             }
             else {
                 Write-Verbose "Distribution ID: $DistributionId"
                 $py_script_args += '--distro_id', $DistributionId
-                # python $py_s3_website_sync_path $ProjectRoot $BucketName --distro_id $DistributionId 2>&1
             }
             if ($Force) {
                 $py_script_args += '--force'
+            }
+            if ($WhatIfPreference) {
+                $py_script_args += '--dry-run'
             }
             # Write-Host "python $py_script_args" -ForegroundColor Cyan
             python $py_script_args 2>&1
